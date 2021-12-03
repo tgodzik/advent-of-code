@@ -1,5 +1,4 @@
 // using resource "./resources"
-// using lib com.lihaoyi::os-lib:0.7.8
 
 package day1
 
