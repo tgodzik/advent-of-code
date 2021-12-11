@@ -6,7 +6,6 @@ package day11
 import scala.util.Using
 import scala.io.Source
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.collection.immutable.Queue
 
 @main def part1(): Unit =
@@ -52,20 +51,15 @@ case class SynchronizationStep(
 
 case class Point(x: Int, y: Int)
 case class Octopei(inputMap: Map[Point, Int]):
-  private val currentSituation = mutable.Map[Point, Int](inputMap.toSeq*)
-  private val points = currentSituation.keys.toList
 
-  private def increment(p: Point): Unit =
-    if (currentSituation.contains(p)) then
-      currentSituation(p) = currentSituation(p) + 1
-      currentSituation(p)
-
+  @tailrec
   private def propagate(
       toVisit: Queue[Point],
-      alreadyFlashed: Set[Point]
-  ): Unit =
+      alreadyFlashed: Set[Point],
+      currentSituation: Map[Point, Int]
+  ): Map[Point, Int] =
     toVisit.dequeueOption match
-      case None =>
+      case None => currentSituation
       case Some((point, dequeued)) =>
         currentSituation.get(point) match
           case Some(v) if v > 9 && !alreadyFlashed(point) =>
@@ -80,31 +74,46 @@ case class Octopei(inputMap: Map[Point, Int]):
                 point.copy(x = point.x - 1, y = point.y + 1),
                 point.copy(x = point.x - 1, y = point.y - 1)
               )
-            propagated.foreach(increment)
-            propagate(dequeued.appendedAll(propagated), alreadyFlashed + point)
+            val newSituation = propagated.foldLeft(currentSituation) {
+              case (map, point) =>
+                map.get(point) match
+                  case Some(v) => map.updated(point, v + 1)
+                  case _       => map
+            }
+            propagate(
+              dequeued.appendedAll(propagated),
+              alreadyFlashed + point,
+              newSituation
+            )
           case _ =>
-            propagate(dequeued, alreadyFlashed)
+            propagate(dequeued, alreadyFlashed, currentSituation)
   end propagate
 
-  def simulate(step: Step): Step =
+  def simulate(step: Step) = simulateIter(step, inputMap)
+
+  @tailrec
+  private def simulateIter(
+      step: Step,
+      currentSituation: Map[Point, Int]
+  ): Step =
     if step.shouldStop then step
     else
-      points.foreach { p =>
-        currentSituation(p) = currentSituation(p) + 1
+      val incremented = currentSituation.map { case (p, v) =>
+        (p, v + 1)
       }
-      val flashes = points.collect {
-        case p if currentSituation(p) > 9 => p
+      val flashes = incremented.collect {
+        case (p, v) if v > 9 => p
       }.toList
-      propagate(Queue(flashes*), Set.empty)
-      val newFlashes = points.map {
-        case p if currentSituation(p) >= 10 =>
-          currentSituation(p) = 0
-          1
-        case _ =>
-          0
+      val propagated = propagate(Queue(flashes*), Set.empty, incremented)
+      val newFlashes = propagated.collect {
+        case (p, v) if v > 9 => 1
       }.sum
-      simulate(step.increment.addFlashes(newFlashes))
-  end simulate
+      val zeroed = propagated.map {
+        case (p, v) if v > 9 => (p, 0)
+        case same            => same
+      }
+      simulateIter(step.increment.addFlashes(newFlashes), zeroed)
+  end simulateIter
 
 end Octopei
 
