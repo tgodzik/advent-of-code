@@ -32,14 +32,16 @@ def parse(input: String): Target =
     case _ => throw IllegalArgumentException("Invalid input")
 
 @tailrec
-def fly(currentY: Int, speed: Int, step: Int, target: Target): Option[Int] =
-  if target.start.y > currentY then None
-  else if target.start.y <= currentY && currentY <= target.end.y then Some(step)
-  else fly(currentY + speed, speed - 1, step + 1, target)
+def fly(currentY: Int, speed: Int, step: Int, target: Target, plausibleSteps: Set[Int]): Set[Int] =
+  if target.start.y > currentY then plausibleSteps
+  else if target.start.y <= currentY && currentY <= target.end.y then
+    fly(currentY + speed, speed - 1, step + 1, target, plausibleSteps + step)
+  else fly(currentY + speed, speed - 1, step + 1, target, plausibleSteps)
 
 def tryY(maxY: Int, target: Target) =
-  for speedY <- 0 to maxY yield fly(0, speedY, 0, target) match
-    case Some(n) =>
+  for speedY <- 0 to maxY yield fly(0, speedY, 0, target, Set.empty) match
+    case plausibleSteps if plausibleSteps.nonEmpty =>
+      val n = plausibleSteps.head
       val maxPossibleSpeed = target.end.x / n + (n - 1) / 2
       Some((n, maxPossibleSpeed, speedY))
     case _ =>
@@ -51,18 +53,24 @@ def part1(input: String) =
   ((1 + maxYSpeed) / 2) * maxYSpeed
 
 def tryYOptions(maxY: Int, target: Target) =
-  for speedY <- -100 to maxY yield fly(0, speedY, 0, target) match
-    case Some(n) =>
-      val maxPossibleSpeed = Math.floor(target.end.x.toDouble / n + (n - 1) / 2.0).toInt
-      val minPossibleSpeed = Math.ceil(target.start.x.toDouble / n + (n - 1) / 2.0).toInt
-      pprint.log((n, speedY, target.start.x.toDouble / n + (n - 1) / 2.0, target.end.x.toDouble / n + (n - 1) / 2.0))
-      pprint.log((n, speedY, minPossibleSpeed, maxPossibleSpeed))
-      (minPossibleSpeed to maxPossibleSpeed).map(x => (x, speedY))
+  for speedY <- -200 to maxY yield fly(0, speedY, 0, target, Set.empty) match
+    case plausibleSteps if plausibleSteps.nonEmpty =>
+      plausibleSteps.map { n =>
+        // if speed is smaller than number of steps that means probe stopped earlier
+        @tailrec
+        def calculate(n: Int): (Int, Int) =
+          val maxPossibleSpeed = Math.floor(target.end.x.toDouble / n + (n - 1) / 2.0).toInt
+          val minPossibleSpeed = Math.ceil(target.start.x.toDouble / n + (n - 1) / 2.0).toInt
+          if minPossibleSpeed < n then calculate(n - 1)
+          else (minPossibleSpeed, maxPossibleSpeed)
+        val (minPossibleSpeed, maxPossibleSpeed) = calculate(n)
+        (minPossibleSpeed to maxPossibleSpeed).map(x => (x, speedY))
+      }
     case _ =>
       Nil
 
 def part2(input: String) =
   val box = parse(input)
-  tryYOptions(100, box).flatten.size
+  tryYOptions(200, box).flatten.flatten.toSet.size
 
 end part2
