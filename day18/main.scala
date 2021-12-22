@@ -25,14 +25,13 @@ import scala.util.matching.Regex
   println(s"The solution is ${part2(readInput())}")
 
 def readInput(): String =
-  Using.resource(Source.fromFile("input/day18"))(_.mkString)
+  Using.resource(Source.fromFile("../input/day18"))(_.mkString)
 
 object NumberParser:
 
   val parser = P.recursive[Expr] { recurse =>
     val num: P[Value] = digit.rep.map(l => Value(l.toList.mkString.toInt))
 
-    // def pair(pa: P[Expr.Pair]): P[Expr.Pair] = (openBracket *> (pair | num) ~ coma ~ (pair | num) <* closeBracket)
     def rep[A](pa: P[A]): P[((A, Unit), A)] =
       pa ~ P.char(',') ~ pa
 
