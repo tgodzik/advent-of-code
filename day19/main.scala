@@ -136,6 +136,7 @@ def part1(input: String) =
 end part1
 
 def part2(input: String) =
+  throw new Exception("")
   val scanners = parse(input)
   val relativePositions = findRelativePositions(scanners)
   val singlePoint = relativePositions.map { case (scanner1, (scanner2, relation)) =>
